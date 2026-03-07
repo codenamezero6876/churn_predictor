@@ -1,0 +1,63 @@
+2026-01-23 11:00:24,917 - INFO - data_etl.py - <module> - Logging setup completed successfully
+2026-01-23 11:00:24,925 - INFO - data_etl.py - main - Parameters loaded successfully from params.yaml
+2026-01-23 11:00:24,926 - INFO - data_etl.py - main - Initializing SparkLoader Class with app name: Exploring Customer Churn Dataset
+2026-01-23 11:00:38,351 - INFO - data_etl.py - main - Spark session created successfully
+2026-01-23 11:00:38,351 - INFO - data_etl.py - main - Data preprocessor initialized with existing Spark session
+2026-01-23 11:00:43,212 - INFO - data_etl.py - main - Data loaded successfully from data/raw\customer_churn_dataset-training-master.csv
+2026-01-23 11:00:44,560 - INFO - data_etl.py - analyze_null_values - Column: CustomerID                               | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:44,878 - INFO - data_etl.py - analyze_null_values - Column: Age                                      | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:45,276 - INFO - data_etl.py - analyze_null_values - Column: Gender                                   | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:45,575 - INFO - data_etl.py - analyze_null_values - Column: Tenure                                   | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:45,838 - INFO - data_etl.py - analyze_null_values - Column: Usage Frequency                          | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:46,139 - INFO - data_etl.py - analyze_null_values - Column: Support Calls                            | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:46,391 - INFO - data_etl.py - analyze_null_values - Column: Payment Delay                            | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:46,635 - INFO - data_etl.py - analyze_null_values - Column: Subscription Type                        | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:46,882 - INFO - data_etl.py - analyze_null_values - Column: Contract Length                          | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:47,194 - INFO - data_etl.py - analyze_null_values - Column: Total Spend                              | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:47,427 - INFO - data_etl.py - analyze_null_values - Column: Last Interaction                         | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:47,632 - INFO - data_etl.py - analyze_null_values - Column: Churn                                    | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:00:47,632 - INFO - data_etl.py - <module> - Preprocessing pipeline completed successfully
+2026-01-23 11:00:47,878 - INFO - data_etl.py - main - Spark session closed
+2026-01-23 11:21:09,543 - INFO - data_etl.py - <module> - Logging setup completed successfully
+2026-01-23 11:21:09,544 - INFO - data_etl.py - main - Parameters loaded successfully from params.yaml
+2026-01-23 11:21:09,544 - INFO - data_etl.py - main - Initializing SparkLoader Class with app name: Exploring Customer Churn Dataset
+2026-01-23 11:21:12,570 - INFO - data_etl.py - main - Spark session created successfully
+2026-01-23 11:21:12,570 - INFO - data_etl.py - main - Data preprocessor initialized with existing Spark session
+2026-01-23 11:21:16,972 - INFO - data_etl.py - main - Data loaded successfully from data/raw\customer_churn_dataset-training-master.csv
+2026-01-23 11:21:17,636 - INFO - data_etl.py - load_data - Total data count: 440833
+2026-01-23 11:21:17,657 - ERROR - data_etl.py - main - Error loading data: unsupported format string passed to IntegerType.__format__
+2026-01-23 11:21:17,657 - ERROR - data_etl.py - main - Preprocessing pipeline failed: unsupported format string passed to IntegerType.__format__
+2026-01-23 11:21:18,003 - INFO - data_etl.py - main - Spark session closed
+2026-01-23 11:26:41,077 - INFO - data_etl.py - <module> - Logging setup completed successfully
+2026-01-23 11:26:41,078 - INFO - data_etl.py - main - Parameters loaded successfully from params.yaml
+2026-01-23 11:26:41,078 - INFO - data_etl.py - main - Initializing SparkLoader Class with app name: Exploring Customer Churn Dataset
+2026-01-23 11:26:44,129 - INFO - data_etl.py - main - Spark session created successfully
+2026-01-23 11:26:44,129 - INFO - data_etl.py - main - Data preprocessor initialized with existing Spark session
+2026-01-23 11:26:49,576 - INFO - data_etl.py - main - Data loaded successfully from data/raw\customer_churn_dataset-training-master.csv
+2026-01-23 11:26:50,265 - INFO - data_etl.py - load_data - Total data count: 440833
+2026-01-23 11:26:50,289 - INFO - data_etl.py - load_data - Column Name: CustomerID           | DataType: IntegerType()        | Nullable: True
+2026-01-23 11:26:50,289 - INFO - data_etl.py - load_data - Column Name: Age                  | DataType: IntegerType()        | Nullable: True
+2026-01-23 11:26:50,289 - INFO - data_etl.py - load_data - Column Name: Gender               | DataType: StringType()         | Nullable: True
+2026-01-23 11:26:50,289 - INFO - data_etl.py - load_data - Column Name: Tenure               | DataType: IntegerType()        | Nullable: True
+2026-01-23 11:26:50,289 - INFO - data_etl.py - load_data - Column Name: Usage Frequency      | DataType: IntegerType()        | Nullable: True
+2026-01-23 11:26:50,290 - INFO - data_etl.py - load_data - Column Name: Support Calls        | DataType: IntegerType()        | Nullable: True
+2026-01-23 11:26:50,290 - INFO - data_etl.py - load_data - Column Name: Payment Delay        | DataType: IntegerType()        | Nullable: True
+2026-01-23 11:26:50,290 - INFO - data_etl.py - load_data - Column Name: Subscription Type    | DataType: StringType()         | Nullable: True
+2026-01-23 11:26:50,290 - INFO - data_etl.py - load_data - Column Name: Contract Length      | DataType: StringType()         | Nullable: True
+2026-01-23 11:26:50,290 - INFO - data_etl.py - load_data - Column Name: Total Spend          | DataType: DoubleType()         | Nullable: True
+2026-01-23 11:26:50,290 - INFO - data_etl.py - load_data - Column Name: Last Interaction     | DataType: IntegerType()        | Nullable: True
+2026-01-23 11:26:50,290 - INFO - data_etl.py - load_data - Column Name: Churn                | DataType: IntegerType()        | Nullable: True
+2026-01-23 11:26:51,144 - INFO - data_etl.py - analyze_null_values - Column: CustomerID                               | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:51,465 - INFO - data_etl.py - analyze_null_values - Column: Age                                      | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:51,864 - INFO - data_etl.py - analyze_null_values - Column: Gender                                   | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:52,083 - INFO - data_etl.py - analyze_null_values - Column: Tenure                                   | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:52,343 - INFO - data_etl.py - analyze_null_values - Column: Usage Frequency                          | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:52,609 - INFO - data_etl.py - analyze_null_values - Column: Support Calls                            | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:52,891 - INFO - data_etl.py - analyze_null_values - Column: Payment Delay                            | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:53,179 - INFO - data_etl.py - analyze_null_values - Column: Subscription Type                        | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:53,440 - INFO - data_etl.py - analyze_null_values - Column: Contract Length                          | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:53,764 - INFO - data_etl.py - analyze_null_values - Column: Total Spend                              | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:53,964 - INFO - data_etl.py - analyze_null_values - Column: Last Interaction                         | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:54,155 - INFO - data_etl.py - analyze_null_values - Column: Churn                                    | Null count: 1               | Percentage: 0.00%
+2026-01-23 11:26:54,155 - INFO - data_etl.py - <module> - Preprocessing pipeline completed successfully
+2026-01-23 11:26:54,651 - INFO - data_etl.py - main - Spark session closed
