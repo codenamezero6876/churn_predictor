@@ -1,0 +1,72 @@
+sparksession:
+  name: "Exploring Customer Churn Dataset"
+
+paths:
+  raw_data_path: "data/raw"
+  raw_data_file: "customer_churn_dataset-training-master.csv"
+  processed_data_path: "data/processed"
+  train_data_path: "data/model_data/train"
+  test_data_path: "data/model_data/test"
+  artifacts_path: "artifacts"
+  metrics_path: "metrics"
+
+data_preprocessing:
+  columns_to_drop:
+    - "CustomerID"
+  columns_to_dropna:
+    - "Support Calls"
+    - "Total Spend"
+    - "Payment Delay"
+  partitions:
+    - "Gender"
+    - "Subscription Type"
+    - "Contract Length"
+
+feature_engineering:
+  new_features:
+    categorize_from_existing:
+      - col_name: "Age"
+        labels:
+          - name: "Young"
+            start: "null"
+            end: 40
+          - name: "Middle-Aged"
+            start: 40
+            end: 65
+          - name: "Senior"
+            start: 65
+            end: "null"
+      - col_name: "Tenure"
+        labels:
+          - name: "New"
+            start: "null"
+            end: 3
+          - name: "Early-Stage"
+            start: 3
+            end: 12
+          - name: "Mid-term"
+            start: 12
+            end: 24
+          - name: "Loyal"
+            start: 24
+            end: "null"
+  train_test_split_ratio: 0.2
+  random_seed: 42
+
+model_training:
+  model_name: "random_forest_model"
+  random_forest:
+    num_trees: 100
+    max_depth: 10
+    seed: 42
+    fss: "auto"
+    impurity: "gini"
+
+model_evaluation:
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1"
+    - "roc_auc"
+    - "confusion_matrix"
