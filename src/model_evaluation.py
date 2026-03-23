@@ -105,7 +105,7 @@ class ModelEvaluator:
 
 
 
-def main():
+def evaluate_model_():
     """Main function to run model evaluation."""
     try:
         params_obj = LoadYamlParams()
@@ -141,4 +141,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    evaluate_model_()
