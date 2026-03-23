@@ -226,7 +226,7 @@ class DataPreprocessor:
 
 
 
-def main():
+def process_data_():
     """Main function to run the preprocessing pipeline."""
 
     logger.info("Logging setup completed successfully", stacklevel=2)
@@ -268,4 +268,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    process_data_()
