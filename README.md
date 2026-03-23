@@ -24,7 +24,7 @@ Customer churn is a critical business problem that directly impacts revenue and 
 - Airflow
 - PySpark
 - Python
-- Databricks
+- Databricks (dashboard to be done soon)
 - AWS S3
 
 <br>
@@ -32,6 +32,9 @@ Customer churn is a critical business problem that directly impacts revenue and 
 ## 📂 Project Structure
 
 ```
+│
+├── dags/
+│   ├── churn_predictor_dag.py      # Workflow orchestration with Airflow DAG
 │
 ├── data/
 │   ├── raw/                        # Raw churn dataset (training and testing)
