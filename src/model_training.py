@@ -143,7 +143,7 @@ class ModelTrainer:
             raise
 
 
-def main():
+def train_model_():
     """Main function to run the model training pipeline."""
     try:
         logger.info("Starting model training pipeline...")
@@ -176,4 +176,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    train_model_()
