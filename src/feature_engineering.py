@@ -205,7 +205,7 @@ class FeatureEngineer:
             raise
 
 
-def main():
+def engineer_features_():
     """Main function to run the feature engineering pipeline."""
 
     logger.info("Starting feature engineering pipeline...")
@@ -249,4 +249,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    engineer_features_()
