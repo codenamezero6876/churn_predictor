@@ -32,7 +32,6 @@ Customer churn is a critical business problem that directly impacts revenue and 
 ## 📂 Project Structure
 
 ```
-Customer-Sales-ETL-Pipeline/
 │
 ├── data/
 │   ├── raw/                        # Raw churn dataset (training and testing)
