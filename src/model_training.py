@@ -1,9 +1,10 @@
 from pyspark.ml.classification import \
-    RandomForestClassifier, \
-    GBTClassifier, \
     DecisionTreeClassifier, \
+    GBTClassifier, \
     LinearSVC, \
-    NaiveBayes
+    LogisticRegression, \
+    NaiveBayes, \
+    RandomForestClassifier
 from pyspark.ml.tuning import \
     ParamGridBuilder, \
     CrossValidator
@@ -48,92 +49,92 @@ class ModelTrainer:
             logger.error(f"Error loading files: {str(e)}", stacklevel=2)
             raise
 
-    def train_gbt(self, train_data: DataFrame, eval_type="accuracy"):
-        """
-        Train GBT model with specified parameters.
-        """
+    def _build_param_grid(self, model_classifier, grid_values:dict):
+        """Builds a parameter grid as the search space for optimal parameters."""
         try:
-            gbt = GBTClassifier(
-                labelCol="label",
-                featuresCol="features"
-            )
-
-            if eval_type == "None":
-                logger.info("Starting GBT training...")
-                model = gbt.fit(train_data)
-                logger.info("GBT training completed successfully")
-                return model
-            
-            param_grid = ParamGridBuilder() \
-                .addGrid(gbt.maxDepth, [5, 10, 20]) \
-                .addGrid(gbt.featureSubsetStrategy, ["auto", "sqrt", "log2"]) \
-                .addGrid(gbt.impurity, [True, False]) \
-                .build()
-            
-            if eval_type == "areaUnderROC" or eval_type == "areaUnderPR":
-                evaluator = BinaryClassificationEvaluator(metricName=eval_type)
-            else:
-                evaluator = MulticlassClassificationEvaluator(metricName=eval_type)
-
-            gbt_cv = CrossValidator(
-                estimator=gbt,
-                evaluator=evaluator,
-                estimatorParamMaps=param_grid
-            )
-
-            model = gbt_cv.fit(train_data).bestModel
-            return model
+            logger.info("Building parameter grid for the classifier...")
+            param_grid = ParamGridBuilder()
+            for param_name, values in grid_values.items():
+                param_grid.addGrid(model_classifier.getParam(param_name), values)
+            param_grid.build()
+            logger.info("Parameter grid built successfully")
+            return param_grid
 
         except Exception as e:
-            logger.error(f"Error training GBT model: {str(e)}", stacklevel=2)
+            logger.error(f"Error building parameter grid: {str(e)}", stacklevel=2)
             raise
 
-    def train_random_forest(self, train_data: DataFrame, eval_type="accuracy"):
+    def train(
+        self,
+        train_data: DataFrame,
+        model_type: str = "gbt",
+        param_optimization: str = None,
+        evaluator_type: str = "accuracy"
+    ):
         """
-        Train Random Forest model with specified parameters.
+        Train a classifier model.
+
+        Args:
+            train_data (DataFrame): Data to train the model
+            model_type (str): The type of model classifier
+            param_optimization (str): Search method for optimal hyperparameters
+            evaluator_type (str): Metric type to evaluate during cross validation
+
+        Returns:
+            The trained model
         """
         try:
-            rf = RandomForestClassifier(
-                labelCol="label",
-                featuresCol="features"
-            )
+            if model_type == "gbt":
+                model_classifier = GBTClassifier()
+            elif model_type == "rfc":
+                model_classifier = RandomForestClassifier()
+            elif model_type == "dtc":
+                model_classifier = DecisionTreeClassifier()
+            elif model_type == "lr":
+                model_classifier = LogisticRegression()
+            elif model_type == "svc":
+                model_classifier = LinearSVC()
+            elif model_type == "nb":
+                model_classifier = NaiveBayes()
+            else:
+                logger.info("[WARNING] Model type is invalid or unavailable. Defaulting to gbt.")
+                param_optimization = None
+                model_classifier = GBTClassifier()
+            
+            if param_optimization == "grid":
+                grid_values = self.config["optimization"]["grid"][model_type]
+                param_grid = self._build_param_grid(model_classifier, grid_values)
 
-            if eval_type == "None":
-                logger.info("Starting Random Forest training...")
-                model = rf.fit(train_data)
-                logger.info("Random Forest training completed successfully")
+                if evaluator_type == "areaUnderROC" or evaluator_type == "areaUnderPR":
+                    evaluator = BinaryClassificationEvaluator(metricName=evaluator_type)
+                else:
+                    evaluator = MulticlassClassificationEvaluator(metricName=evaluator_type)
+
+                model_cv = CrossValidator(
+                    estimator=model,
+                    evaluator=evaluator,
+                    estimatorParamMaps=param_grid
+                )
+                logger.info("Starting model training...")
+                best_model = model_cv.fit(train_data).bestModel
+                logger.info("Model training completed successfully")
+                return best_model
+            
+            else:
+                logger.info("Starting model training...")
+                model = model_classifier.fit(train_data)
+                logger.info("Model training completed successfully")
                 return model
 
-            param_grid = ParamGridBuilder() \
-                .addGrid(rf.numTrees, [20, 50, 100]) \
-                .addGrid(rf.maxDepth, [5, 10, 20]) \
-                .addGrid(rf.featureSubsetStrategy, ["auto", "sqrt", "log2"]) \
-                .addGrid(rf.impurity, [True, False]) \
-                .build()
-            
-            if eval_type == "areaUnderROC" or eval_type == "areaUnderPR":
-                evaluator = BinaryClassificationEvaluator(metricName=eval_type)
-            else:
-                evaluator = MulticlassClassificationEvaluator(metricName=eval_type)
-
-            rf_cv = CrossValidator(
-                estimator=rf,
-                evaluator=evaluator,
-                estimatorParamMaps=param_grid
-            )
-
-            fitted_model = rf_cv.fit(train_data)
-            return fitted_model
-            
         except Exception as e:
-            logger.error(f"Error training Random Forest Model: {str(e)}", stacklevel=2)
+            logger.error(f"Error training model: {str(e)}", stacklevel=2)
             raise
 
     def save_model(self, model, models_path: str):
         """Save the trained model."""
         try:
             os.makedirs(os.path.dirname(models_path), exist_ok=True)
-            model_name = self.config.get("model_name", "trained_model")
+            model_name = model.uid
             model_path = os.path.join(models_path, model_name)
             model.save(model_path)
             logger.info(f"Model saved successfully to {model_path}")
