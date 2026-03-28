@@ -162,8 +162,13 @@ def train_model_():
             config=params["model_training"]
         )
         train_data = trainer.load_data_parquet(train_path)
-        rf_model = trainer.train_random_forest(train_data)
-        trainer.save_model(rf_model, models_path)
+        trained_model = trainer.train(
+            train_data=train_data,
+            model_type="gbt",
+            param_optimization="grid",
+            evaluator_type="accuracy"
+        )
+        trainer.save_model(trained_model, models_path)
 
         logger.info("Model training pipeline completed successfully")
 
