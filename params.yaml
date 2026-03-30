@@ -9,6 +9,7 @@ paths:
   test_data_path: "data/model_data/test"
   artifacts_path: "artifacts"
   metrics_path: "metrics"
+  model_path: "GBTClassifier_1c8668dd7fc0"
 
 data_preprocessing:
   columns_to_drop:
@@ -54,6 +55,9 @@ feature_engineering:
   random_seed: 42
 
 model_training:
+  eval_choice: "accuracy"
+  model_choice: "gbt"
+  optim_choice: "grid"
   optimization:
     grid:
       rfc:
@@ -81,9 +85,6 @@ model_training:
           - "auto"
           - "sqrt"
           - "log2"
-        impurity:
-          - "gini"
-          - "entropy"
 
 model_evaluation:
   metrics:
