@@ -96,8 +96,7 @@ class DataPreprocessor:
         self.spark = spark
         self.config = config
         logger.info(
-            "Data preprocessor initialized with existing Spark session",
-            stacklevel=2
+            "[INFO] Data preprocessor initialized with existing Spark session"
         )
 
     def load_data_csv(self, input_path: str, show_schema=True) -> DataFrame:
@@ -110,18 +109,18 @@ class DataPreprocessor:
                 inferSchema=True,
                 mode="PERMISSIVE"
             )
-            logger.info(f"Data loaded successfully from {input_path}", stacklevel=2)
-            logger.info(f"Total data count: {df.count()}")
+            logger.info(f"[INFO] Data loaded successfully from {input_path}")
+            logger.info(f"[INFO] Total data count: {df.count()}")
 
 
             if show_schema:
                 for field in df.schema:
-                    logger.info(f"Column Name: {field.name:<20} | DataType: {str(field.dataType):<20} | Nullable: {field.nullable}")
+                    logger.info(f"[INFO] Column Name: {field.name:<20} | DataType: {str(field.dataType):<20} | Nullable: {field.nullable}")
 
             return df
         
         except Exception as e:
-            logger.error(f"Error loading data: {str(e)}", stacklevel=2)
+            logger.error(f"[ERROR] Error loading data: {str(e)}", stacklevel=2)
             raise
         
     def check_null_data(self, df: DataFrame) -> None:
@@ -151,10 +150,10 @@ class DataPreprocessor:
                 null_count = df.filter(null_condition).count()
                 percentage = (null_count / total_count) * 100
 
-                logger.info(f"Column: {column:<40} | Null count: {null_count:<15} | Percentage: {percentage:.2f}%")
+                logger.info(f"[INFO] Column: {column:<40} | Null count: {null_count:<15} | Percentage: {percentage:.2f}%")
 
         except Exception as e:
-            logger.error(f"Error analyzing null values: {str(e)}", stacklevel=2)
+            logger.error(f"[ERROR] Error analyzing null values: {str(e)}", stacklevel=2)
             raise
 
     def clean_data(self, df: DataFrame) -> DataFrame:
@@ -169,30 +168,30 @@ class DataPreprocessor:
             columns_to_drop = self.config.get("columns_to_drop", [])
             if columns_to_drop:
                 df = df.drop(*columns_to_drop)
-                logger.info(f"Dropped columns: {columns_to_drop}")
+                logger.info(f"[INFO] Dropped columns: {columns_to_drop}")
             else:
-                logger.info("No columns were dropped")
+                logger.info("[INFO] No columns were dropped")
 
             columns_to_dropna = self.config.get("columns_to_dropna", [])
             if columns_to_dropna:
                 df = df.dropna(subset=[*columns_to_dropna])
-                logger.info(f"Dropped rows with missing values in columns: {columns_to_dropna}")
+                logger.info(f"[INFO] Dropped rows with missing values in columns: {columns_to_dropna}")
             else:
-                logger.info(f"No rows with missing values in specified columns")
-            logger.info(f"Data count after handling missing values: {df.count()}")
+                logger.info(f"[INFO] No rows with missing values in specified columns")
+            logger.info(f"[INFO] Data count after handling missing values: {df.count()}")
 
             columns_to_dedup = self.config.get("columns_to_dedup", [])
             if "columns_to_dedup" in self.config:
                 df = df.dropDuplicates([*columns_to_dedup])
-                logger.info(f"Removed duplicate values from columns: {columns_to_dedup}")
+                logger.info(f"[INFO] Removed duplicate values from columns: {columns_to_dedup}")
             else:
                 df = df.dropDuplicates()
-            logger.info(f"Data count after removing duplicates: {df.count()}")
+            logger.info(f"[INFO] Data count after removing duplicates: {df.count()}")
 
             return df
         
         except Exception as e:
-            logger.error(f"Error cleaning data: {str(e)}", stacklevel=2)
+            logger.error(f"[ERROR] Error cleaning data: {str(e)}", stacklevel=2)
             raise
     
     def save_data_parquet(self, df: DataFrame, output_path: str):
@@ -204,7 +203,7 @@ class DataPreprocessor:
             output_path (str): Relative file path to save the dataframe to
         """
 
-        logger.info(f"Saving {df.count()} records as Parquet files to {output_path}...")
+        logger.info(f"[INFO] Saving {df.count()} records as Parquet files to {output_path}...")
 
         try:
             os.makedirs(output_path, exist_ok=True)
@@ -215,13 +214,13 @@ class DataPreprocessor:
             else:
                 df.write.parquet(output_path, mode="overwrite")
 
-            logger.info(f"Successfully wrote {df.count()} records")
-            logger.info(f"Output location: {output_path}")
+            logger.info(f"[INFO] Successfully wrote {df.count()} records")
+            logger.info(f"[INFO] Output location: {output_path}")
 
             return df.count()
 
         except Exception as e:
-            logger.error(f"Error saving data as Parquet files: {str(e)}")
+            logger.error(f"[ERROR] Error saving data as Parquet files: {str(e)}", stacklevel=2)
             raise
 
 
@@ -229,7 +228,7 @@ class DataPreprocessor:
 def process_data_():
     """Main function to run the preprocessing pipeline."""
 
-    logger.info("Logging setup completed successfully", stacklevel=2)
+    logger.info("[INFO] Logging setup completed successfully")
 
     try:
         params_obj = LoadYamlParams()
@@ -256,10 +255,10 @@ def process_data_():
             df=df_cleaned, 
             output_path=processed_data_path,
         )
-        logger.info("Preprocessing pipeline completed successfully", stacklevel=2)
+        logger.info("[INFO] Preprocessing pipeline completed successfully")
 
     except Exception as e:
-        logger.error(f"Preprocessing pipeline failed: {str(e)}", stacklevel=1)
+        logger.error(f"[ERROR] Preprocessing pipeline failed: {str(e)}", stacklevel=2)
         raise
 
     finally:
