@@ -25,18 +25,18 @@ class FeatureEngineer:
         """
         self.spark = spark
         self.config = config
-        logger.info("FeatureEngineer initialized with existing SparkSession", stacklevel=2)
+        logger.info("[INFO] FeatureEngineer initialized with existing SparkSession", stacklevel=2)
 
     def load_data_parquet(self, input_path: str) -> DataFrame:
         """Load processed data from local Parquet files."""
 
         try:
             df = self.spark.read.parquet(input_path)
-            logger.info(f"Processed data successfully loaded from {input_path}")
+            logger.info(f"[INFO] Processed data successfully loaded from {input_path}")
             return df
 
         except Exception as e:
-            logger.error(f"Error loading files: {str(e)}")
+            logger.error(f"[ERROR] Error loading files: {str(e)}", stacklevel=2)
             raise
 
     def categorize_existing_columns(self, df: DataFrame) -> DataFrame:
@@ -73,11 +73,11 @@ class FeatureEngineer:
 
                     df = df.withColumn(f"{category}_category", cond)
 
-                logger.info("Successfully categorized all existing numeric columns specified in config")
+                logger.info("[INFO] Successfully categorized all existing numeric columns specified in config")
                 return df
 
         except Exception as e:
-            logger.error(f"Error categorizing numeric column: {str(e)}")
+            logger.error(f"[ERROR] Error categorizing numeric column: {str(e)}", stacklevel=2)
             raise
 
     def create_some_feature(self, df: DataFrame) -> DataFrame:
@@ -89,7 +89,7 @@ class FeatureEngineer:
             return df
         
         except Exception as e:
-            logger.error(f"Error creating this feature: {str(e)}")
+            logger.error(f"[ERROR] Error creating this feature: {str(e)}", stacklevel=2)
             raise
 
     def create_ml_features(self, df: DataFrame) -> DataFrame:
@@ -147,11 +147,11 @@ class FeatureEngineer:
                 F.col("Churn").cast("double").alias("label")
             )
 
-            logger.info("Successfully created ML features")
+            logger.info("[INFO] Successfully created ML features")
             return df_result
 
         except Exception as e:
-            logger.error(f"Error creating ML-ready features: {str(e)}")
+            logger.error(f"[ERROR] Error creating ML-ready features: {str(e)}", stacklevel=2)
             raise
 
     def split_data(self, df: DataFrame) -> Tuple[DataFrame]:
@@ -167,11 +167,11 @@ class FeatureEngineer:
                 weights=[1 - split_ratio, split_ratio],
                 seed=random_seed
             )
-            logger.info("Train-test split is successful")
+            logger.info("[INFO] Train-test split is successful")
             return train_df, test_df
         
         except Exception as e:
-            logger.error(f"Error splitting data: {str(e)}")
+            logger.error(f"[ERROR] Error splitting data: {str(e)}", stacklevel=2)
             raise
 
     def save_feature_data_parquet(
@@ -197,18 +197,18 @@ class FeatureEngineer:
                 .format("parquet") \
                 .save(test_path)
             
-            logger.info(f"Train data saved to {train_path}.")
-            logger.info(f"Test data saved to {test_path}.")
+            logger.info(f"[INFO] Train data saved to {train_path}.")
+            logger.info(f"[INFO] Test data saved to {test_path}.")
 
         except Exception as e:
-            logger.error(f"Error saving feature data: {str(e)}")
+            logger.error(f"[ERROR] Error saving feature data: {str(e)}", stacklevel=2)
             raise
 
 
 def engineer_features_():
     """Main function to run the feature engineering pipeline."""
 
-    logger.info("Starting feature engineering pipeline...")
+    logger.info("[INFO] Starting feature engineering pipeline...")
 
     try:
         params_obj = LoadYamlParams()
@@ -237,10 +237,10 @@ def engineer_features_():
             test_path=test_path
         )
 
-        logger.info(f"Feature engineering pipeline completed successfully")
+        logger.info(f"[INFO] Feature engineering pipeline completed successfully")
 
     except Exception as e:
-        logger.error(f"Feature engineering pipeline failed: {str(e)}")
+        logger.error(f"[ERROR] Feature engineering pipeline failed: {str(e)}", stacklevel=2)
         raise
 
     finally:
