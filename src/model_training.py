@@ -5,15 +5,18 @@ from pyspark.ml.classification import \
     LogisticRegression, \
     NaiveBayes, \
     RandomForestClassifier
+
 from pyspark.ml.tuning import \
     ParamGridBuilder, \
     CrossValidator
+
 from pyspark.ml.evaluation import \
     BinaryClassificationEvaluator, \
     MulticlassClassificationEvaluator
+
 from pyspark.sql import SparkSession, DataFrame
 
-import os
+import os, yaml
 from src.data_preprocessing import Log, SparkLoader, LoadYamlParams
 
 
@@ -35,55 +38,53 @@ class ModelTrainer:
         """
         self.spark = spark
         self.config = config
-        logger.info("ModelTrainer initialized with existing SparkSession", stacklevel=2)
+        logger.info("[INFO] ModelTrainer initialized with existing SparkSession")
 
     def load_data_parquet(self, input_path: str) -> DataFrame:
         """Load training data from local Parquet files."""
 
         try:
             df = self.spark.read.parquet(input_path)
-            logger.info(f"Training data successfully loaded from {input_path}")
+            logger.info(f"[INFO] Training data successfully loaded from {input_path}")
             return df
 
         except Exception as e:
-            logger.error(f"Error loading files: {str(e)}", stacklevel=2)
+            logger.error(f"[ERROR] Error loading files: {str(e)}", stacklevel=2)
             raise
 
     def _build_param_grid(self, model_classifier, grid_values:dict):
         """Builds a parameter grid as the search space for optimal parameters."""
         try:
-            logger.info("Building parameter grid for the classifier...")
+            logger.info("[INFO] Building parameter grid for the classifier...")
             param_grid = ParamGridBuilder()
             for param_name, values in grid_values.items():
                 param_grid.addGrid(model_classifier.getParam(param_name), values)
-            param_grid.build()
-            logger.info("Parameter grid built successfully")
-            return param_grid
+            
+            logger.info("[INFO] Parameter grid built successfully")
+            return param_grid.build()
 
         except Exception as e:
-            logger.error(f"Error building parameter grid: {str(e)}", stacklevel=2)
+            logger.error(f"[ERROR] Error building parameter grid: {str(e)}", stacklevel=2)
             raise
 
     def train(
         self,
-        train_data: DataFrame,
-        model_type: str = "gbt",
-        param_optimization: str = None,
-        evaluator_type: str = "accuracy"
+        train_data: DataFrame
     ):
         """
         Train a classifier model.
 
         Args:
             train_data (DataFrame): Data to train the model
-            model_type (str): The type of model classifier
-            param_optimization (str): Search method for optimal hyperparameters
-            evaluator_type (str): Metric type to evaluate during cross validation
 
         Returns:
             The trained model
         """
         try:
+            model_type = self.config["model_training"]["model_choice"]
+            optim_type = self.config["model_training"]["optim_choice"]
+            evaluator_type = self.config["model_training"]["eval_choice"]
+
             if model_type == "gbt":
                 model_classifier = GBTClassifier()
             elif model_type == "rfc":
@@ -98,11 +99,11 @@ class ModelTrainer:
                 model_classifier = NaiveBayes()
             else:
                 logger.info("[WARNING] Model type is invalid or unavailable. Defaulting to gbt.")
-                param_optimization = None
+                optim_type = None
                 model_classifier = GBTClassifier()
             
-            if param_optimization == "grid":
-                grid_values = self.config["optimization"]["grid"][model_type]
+            if optim_type == "grid":
+                grid_values = self.config["model_training"]["optimization"]["grid"][model_type]
                 param_grid = self._build_param_grid(model_classifier, grid_values)
 
                 if evaluator_type == "areaUnderROC" or evaluator_type == "areaUnderPR":
@@ -111,23 +112,23 @@ class ModelTrainer:
                     evaluator = MulticlassClassificationEvaluator(metricName=evaluator_type)
 
                 model_cv = CrossValidator(
-                    estimator=model,
+                    estimator=model_classifier,
                     evaluator=evaluator,
                     estimatorParamMaps=param_grid
                 )
-                logger.info("Starting model training...")
+                logger.info("[INFO] Starting model training...")
                 best_model = model_cv.fit(train_data).bestModel
-                logger.info("Model training completed successfully")
+                logger.info("[INFO] Model training completed successfully")
                 return best_model
             
             else:
-                logger.info("Starting model training...")
+                logger.info("[INFO] Starting model training...")
                 model = model_classifier.fit(train_data)
-                logger.info("Model training completed successfully")
+                logger.info("[INFO] Model training completed successfully")
                 return model
 
         except Exception as e:
-            logger.error(f"Error training model: {str(e)}", stacklevel=2)
+            logger.error(f"[ERROR] Error training model: {str(e)}", stacklevel=2)
             raise
 
     def save_model(self, model, models_path: str):
@@ -137,17 +138,24 @@ class ModelTrainer:
             model_name = model.uid
             model_path = os.path.join(models_path, model_name)
             model.save(model_path)
-            logger.info(f"Model saved successfully to {model_path}")
+            logger.info(f"[INFO] Model saved successfully to {model_path}")
+
+            self.config["paths"]["model_path"] = model_name
+            with open("params.yaml", 'w') as f:
+                yaml.safe_dump(self.config, f)
 
         except Exception as e:
-            logger.error(f"Error saving trained model: {str(e)}", stacklevel=2)
+            logger.error(f"[ERROR] Error saving trained model: {str(e)}", stacklevel=2)
             raise
 
 
 def train_model_():
     """Main function to run the model training pipeline."""
+
+    print("[INFO] Starting model training pipeline...")
+
     try:
-        logger.info("Starting model training pipeline...")
+        logger.info("[INFO] Starting model training pipeline...")
 
         params_obj = LoadYamlParams()
         params = params_obj.load_params(filepath="params.yaml")
@@ -159,21 +167,16 @@ def train_model_():
         spark_loader = SparkLoader(app_name)
         trainer = ModelTrainer(
             spark=spark_loader.spark,
-            config=params["model_training"]
+            config=params
         )
         train_data = trainer.load_data_parquet(train_path)
-        trained_model = trainer.train(
-            train_data=train_data,
-            model_type="gbt",
-            param_optimization="grid",
-            evaluator_type="accuracy"
-        )
+        trained_model = trainer.train(train_data=train_data)
         trainer.save_model(trained_model, models_path)
 
-        logger.info("Model training pipeline completed successfully")
+        logger.info("[INFO] Model training pipeline completed successfully")
 
     except Exception as e:
-        logger.error(f"Model training pipeline failed: {str(e)}", stacklevel=2)
+        logger.error(f"[ERROR] Model training pipeline failed: {str(e)}", stacklevel=2)
         raise
 
     finally:
