@@ -1,5 +1,12 @@
+from pyspark.ml.classification import \
+    DecisionTreeClassificationModel, \
+    GBTClassificationModel, \
+    LinearSVCModel, \
+    LogisticRegressionModel, \
+    NaiveBayesModel, \
+    RandomForestClassificationModel
+
 from pyspark.ml.evaluation import BinaryClassificationEvaluator, MulticlassClassificationEvaluator
-from pyspark.ml.classification import RandomForestClassificationModel
 from pyspark.ml import Transformer
 from pyspark.sql import SparkSession, DataFrame
 
@@ -27,17 +34,32 @@ class ModelEvaluator:
         """
         self.spark = spark
         self.config = config
-        logger.info("ModelEvaluator initialized with existing SparkSession")
+        logger.info("[INFO] ModelEvaluator initialized with existing SparkSession")
 
     def load_model(self, model_path: str):
         """Load the trained model from disk."""
         try:
-            model = RandomForestClassificationModel.load(model_path)
-            logger.info(f"Model loaded successfully from {model_path}")
+            base_model = self.config["paths"]["model_path"]
+            if base_model.startswith("GBTClassifier"):
+                model = GBTClassificationModel.load(model_path)
+            elif base_model.startswith("RandomForestClassifier"):
+                model = RandomForestClassificationModel.load(model_path)
+            elif base_model.startswith("DecisionTreeClassifier"):
+                model = DecisionTreeClassificationModel.load(model_path)
+            elif base_model.startswith("LogisticRegression"):
+                model = LogisticRegressionModel.load(model_path)
+            elif base_model.startswith("LinearSVC"):
+                model = LinearSVCModel.load(model_path)
+            elif base_model.startswith("NaiveBayes"):
+                model = NaiveBayesModel.load(model_path)
+            else:
+                logger.info("[WARNING] Model type is invalid or unavailable. Defaulting to base GBTClassifierModel.")
+                model = GBTClassificationModel()
+            logger.info(f"[INFO] Model loaded successfully from {model_path}")
             return model
         
         except Exception as e:
-            logger.error(f"Error loading model: {str(e)}")
+            logger.error(f"[ERROR] Error loading model: {str(e)}", stacklevel=2)
             raise
 
     def load_data_parquet(self, input_path: str) -> DataFrame:
@@ -45,11 +67,11 @@ class ModelEvaluator:
 
         try:
             df = self.spark.read.parquet(input_path)
-            logger.info(f"Test data successfully loaded from {input_path}")
+            logger.info(f"[INFO] Test data successfully loaded from {input_path}")
             return df
 
         except Exception as e:
-            logger.error(f"Error loading files: {str(e)}")
+            logger.error(f"[ERROR] Error loading files: {str(e)}", stacklevel=2)
             raise
 
     def calculate_metrics(self, model: Transformer, df: DataFrame):
@@ -82,31 +104,35 @@ class ModelEvaluator:
                 for row in cf_matrix
             ]
 
-            logger.info("Model evaluation metrics calculated successfully")
+            logger.info("[INFO] Model evaluation metrics calculated successfully")
             return metrics
 
         except Exception as e:
-            logger.error(f"Error calculating metrics: {str(e)}")
+            logger.error(f"[ERROR] Error calculating metrics: {str(e)}")
             raise
 
     def save_metrics(self, metrics: dict, metrics_path: str):
         """Save metrics to JSON file."""
         try:
-            output_path = os.path.join(metrics_path, "model_metrics.json")
+            model_name = self.config["paths"]["model_path"]
+            output_path = os.path.join(metrics_path, f"{model_name}_metrics.json")
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             with open(output_path, "w") as f:
                 json.dump(metrics, f, indent=4)
 
-            logger.info(f"Metrics saved successfully to {output_path}")
+            logger.info(f"[INFO] Metrics saved successfully to {output_path}")
 
         except Exception as e:
-            logger.error(f"Error saving metrics: {str(e)}")
+            logger.error(f"[ERROR] Error saving metrics: {str(e)}", stacklevel=2)
             raise
 
 
 
 def evaluate_model_():
     """Main function to run model evaluation."""
+
+    logger.info("[INFO] Starting model evaluation pipeline...")
+
     try:
         params_obj = LoadYamlParams()
         params = params_obj.load_params(filepath="params.yaml")
@@ -114,7 +140,7 @@ def evaluate_model_():
         app_name = params["sparksession"]["name"]
         model_path = os.path.join(
             params["paths"]["artifacts_path"],
-            params["model_training"]["model_name"]
+            params["paths"]["model_path"]
         )
         test_path = params["paths"]["test_data_path"]
         metrics_path = params["paths"]["metrics_path"]
@@ -122,17 +148,17 @@ def evaluate_model_():
         spark_loader = SparkLoader(app_name)
         evaluator = ModelEvaluator(
             spark=spark_loader.spark,
-            config=params["model_evaluation"]
+            config=params
         )
         model = evaluator.load_model(model_path)
         test_data = evaluator.load_data_parquet(test_path)
         metrics = evaluator.calculate_metrics(model, test_data)
         evaluator.save_metrics(metrics, metrics_path)
 
-        logger.info("Model evaluation completed successfully")
+        logger.info("[INFO] Model evaluation completed successfully")
 
     except Exception as e:
-        logger.error(f"Model evaluation pipeline failed: {str(e)}")
+        logger.error(f"[ERROR] Model evaluation pipeline failed: {str(e)}")
         raise
 
     finally:
