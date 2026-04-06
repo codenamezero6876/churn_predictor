@@ -13,7 +13,11 @@ from pyspark.sql import SparkSession, DataFrame
 import os
 import json
 
-from src.data_preprocessing import Log, LoadYamlParams, SparkLoader
+from src.helper_class import \
+    Log, \
+    LoadYamlParams, \
+    SparkLoader, \
+    load_data
 
 
 logger = Log.setup_logging()
@@ -36,21 +40,20 @@ class ModelEvaluator:
         self.config = config
         logger.info("[INFO] ModelEvaluator initialized with existing SparkSession")
 
-    def load_model(self, model_path: str):
+    def load_model(self, model_path: str, model_id: str):
         """Load the trained model from disk."""
         try:
-            base_model = self.config["paths"]["model_path"]
-            if base_model.startswith("GBTClassifier"):
+            if model_id.startswith("GBTClassifier"):
                 model = GBTClassificationModel.load(model_path)
-            elif base_model.startswith("RandomForestClassifier"):
+            elif model_id.startswith("RandomForestClassifier"):
                 model = RandomForestClassificationModel.load(model_path)
-            elif base_model.startswith("DecisionTreeClassifier"):
+            elif model_id.startswith("DecisionTreeClassifier"):
                 model = DecisionTreeClassificationModel.load(model_path)
-            elif base_model.startswith("LogisticRegression"):
+            elif model_id.startswith("LogisticRegression"):
                 model = LogisticRegressionModel.load(model_path)
-            elif base_model.startswith("LinearSVC"):
+            elif model_id.startswith("LinearSVC"):
                 model = LinearSVCModel.load(model_path)
-            elif base_model.startswith("NaiveBayes"):
+            elif model_id.startswith("NaiveBayes"):
                 model = NaiveBayesModel.load(model_path)
             else:
                 logger.info("[WARNING] Model type is invalid or unavailable. Defaulting to base GBTClassifierModel.")
@@ -62,17 +65,14 @@ class ModelEvaluator:
             logger.error(f"[ERROR] Error loading model: {str(e)}", stacklevel=2)
             raise
 
-    def load_data_parquet(self, input_path: str) -> DataFrame:
-        """Load test data from local Parquet files."""
-
-        try:
-            df = self.spark.read.parquet(input_path)
-            logger.info(f"[INFO] Test data successfully loaded from {input_path}")
-            return df
-
-        except Exception as e:
-            logger.error(f"[ERROR] Error loading files: {str(e)}", stacklevel=2)
-            raise
+    def load_test_data(self, input_path: str) -> DataFrame:
+        load_format = self.config.get("load_format", "delta")
+        df = load_data(
+            spark=self.spark,
+            input_path=input_path,
+            format=load_format
+        )
+        return df
 
     def calculate_metrics(self, model: Transformer, df: DataFrame):
         """Calculate various classification metrics."""
@@ -111,11 +111,10 @@ class ModelEvaluator:
             logger.error(f"[ERROR] Error calculating metrics: {str(e)}")
             raise
 
-    def save_metrics(self, metrics: dict, metrics_path: str):
+    def save_metrics(self, metrics: dict, metrics_path: str, model_id: str):
         """Save metrics to JSON file."""
         try:
-            model_name = self.config["paths"]["model_path"]
-            output_path = os.path.join(metrics_path, f"{model_name}_metrics.json")
+            output_path = os.path.join(metrics_path, f"{model_id}_metrics.json")
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
             with open(output_path, "w") as f:
                 json.dump(metrics, f, indent=4)
@@ -138,20 +137,21 @@ def evaluate_model_():
         params = params_obj.load_params(filepath="params.yaml")
 
         app_name = params["sparksession"]["name"]
+        model_id = params["paths"]["model_path"]
         model_path = os.path.join(
-            params["paths"]["artifacts_path"],
-            params["paths"]["model_path"]
+            params["paths"]["artifacts"],
+            model_id
         )
-        test_path = params["paths"]["test_data_path"]
-        metrics_path = params["paths"]["metrics_path"]
+        test_path = params["paths"]["data"]["testing"]
+        metrics_path = params["paths"]["metrics"]
 
         spark_loader = SparkLoader(app_name)
         evaluator = ModelEvaluator(
             spark=spark_loader.spark,
-            config=params
+            config=params["model_evaluation"]
         )
-        model = evaluator.load_model(model_path)
-        test_data = evaluator.load_data_parquet(test_path)
+        model = evaluator.load_model(model_path, model_id)
+        test_data = evaluator.load_test_data(test_path)
         metrics = evaluator.calculate_metrics(model, test_data)
         evaluator.save_metrics(metrics, metrics_path)
 
