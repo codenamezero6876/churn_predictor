@@ -4,7 +4,12 @@ from pyspark.sql import SparkSession, DataFrame, Column, functions as F
 
 from typing import Tuple
 from functools import reduce
-from src.data_preprocessing import Log, SparkLoader, LoadYamlParams
+from src.helper_class import \
+    Log, \
+    SparkLoader, \
+    LoadYamlParams, \
+    load_data, \
+    save_data
 
 
 logger = Log.setup_logging()
@@ -27,17 +32,14 @@ class FeatureEngineer:
         self.config = config
         logger.info("[INFO] FeatureEngineer initialized with existing SparkSession", stacklevel=2)
 
-    def load_data_parquet(self, input_path: str) -> DataFrame:
-        """Load processed data from local Parquet files."""
-
-        try:
-            df = self.spark.read.parquet(input_path)
-            logger.info(f"[INFO] Processed data successfully loaded from {input_path}")
-            return df
-
-        except Exception as e:
-            logger.error(f"[ERROR] Error loading files: {str(e)}", stacklevel=2)
-            raise
+    def load_processed_data(self, input_path: str) -> DataFrame:
+        load_format = self.config.get("load_format", "delta")
+        df = load_data(
+            spark=self.spark,
+            input_path=input_path,
+            format=load_format
+        )
+        return df
 
     def categorize_existing_columns(self, df: DataFrame) -> DataFrame:
         """
@@ -174,7 +176,7 @@ class FeatureEngineer:
             logger.error(f"[ERROR] Error splitting data: {str(e)}", stacklevel=2)
             raise
 
-    def save_feature_data_parquet(
+    def save_feature_data(
         self,
         train_df: DataFrame,
         test_df: DataFrame,
@@ -185,17 +187,23 @@ class FeatureEngineer:
         Save train and test DataFrames as Parquet files
         """
         try:
-            train_df.coalesce(1) \
-                .write \
-                .mode("overwrite") \
-                .format("parquet") \
-                .save(train_path)
-            
-            test_df.coalesce(1) \
-                .write \
-                .mode("overwrite") \
-                .format("parquet") \
-                .save(test_path)
+            repartition = self.config.get("repartition", None)
+            save_format = self.config.get("save_format", "delta")
+            if repartition is not None:
+                train_df = train_df.repartition(repartition)
+                test_df = test_df.repartition(repartition)
+
+            save_data(
+                df=train_df,
+                output_path=train_path,
+                format=save_format
+            )
+
+            save_data(
+                df=test_df,
+                output_path=test_path,
+                format=save_format
+            )
             
             logger.info(f"[INFO] Train data saved to {train_path}.")
             logger.info(f"[INFO] Test data saved to {test_path}.")
@@ -215,22 +223,20 @@ def engineer_features_():
         params = params_obj.load_params(filepath="params.yaml")
 
         app_name = params["sparksession"]["name"]
-        processed_data_path = params["paths"]["processed_data_path"]
-        train_path = params["paths"]["train_data_path"]
-        test_path = params["paths"]["test_data_path"]
+        processed_data_path = params["paths"]["data"]["processed"]
+        train_path = params["paths"]["data"]["training"]
+        test_path = params["paths"]["data"]["testing"]
 
         spark_loader = SparkLoader(app_name)
         engineer = FeatureEngineer(
             spark=spark_loader.spark,
             config=params["feature_engineering"]
         )
-        df = engineer.load_data_parquet(
-            input_path=processed_data_path
-        )
+        df = engineer.load_processed_data(input_path=processed_data_path)
         df = engineer.categorize_existing_columns(df)
         df = engineer.create_ml_features(df)
         train_df, test_df = engineer.split_data(df)
-        engineer.save_feature_data_parquet(
+        engineer.save_feature_data(
             train_df=train_df,
             test_df=test_df,
             train_path=train_path,
