@@ -2,83 +2,15 @@ from pyspark.sql import SparkSession, DataFrame
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
 
-import logging
-import yaml
 import os
-
-class Log:
-
-    @staticmethod
-    def setup_logging(log_dir="logging-info"):
-        os.makedirs(log_dir, exist_ok=True)
-
-        logger = logging.getLogger(__name__)
-        logger.setLevel(logging.INFO)
-
-        if not logger.hasHandlers():
-            file_handler = logging.FileHandler(
-                filename=os.path.join(log_dir, "logs.log"), 
-                encoding="utf-8"
-            )
-            formatter = logging.Formatter(
-                "%(asctime)s - %(levelname)s - %(filename)s - %(funcName)s - %(message)s"
-            )
-            file_handler.setFormatter(formatter)
-            logger.addHandler(file_handler)
-
-        return logger
+from src.helper_class import \
+    Log, \
+    LoadYamlParams, \
+    SparkLoader, \
+    load_data, \
+    save_data
 
 logger = Log.setup_logging()
-
-
-class LoadYamlParams:
-    """Load parameters from YAML file."""
-
-    def load_params(self, filepath: str) -> dict:
-
-        try:
-            with open(filepath, "r") as file:
-                params = yaml.safe_load(file)
-            logger.info(f"Parameters loaded successfully from {filepath}", stacklevel=2)
-            return params
-        
-        except Exception as e:
-            logger.error(f"Error loading parameters: {str(e)}", stacklevel=2)
-            raise
-
-
-class SparkLoader:
-    """
-    This class creates or loads the Spark session.
-
-    Args:
-        app_name (str): Name of application
-
-    Attributes:
-        spark: SparkSession
-    """
-
-    def __init__(self, app_name):
-        logger.info(
-            msg=f"Initializing SparkLoader Class with app name: {app_name}",
-            stacklevel=2        
-        )
-        try:
-            logger.debug("Creating Spark session...", stacklevel=2)
-
-            self.spark = SparkSession.builder \
-                .appName(app_name) \
-                .config("spark.sql.adaptive.enabled", "true") \
-                .config("spark.sql.parquet.enableVectorizedRender", "true") \
-                .config("spark.sql.parquet.columnarReaderBatchSize", "4096") \
-                .getOrCreate()
-            
-            logger.info("Spark session created successfully", stacklevel=2)
-
-        except Exception as e:
-            logger.error(f"Error creating Spark session: {str(e)}", stacklevel=2)
-            raise e
-        
     
 class DataPreprocessor:
     """
@@ -122,6 +54,15 @@ class DataPreprocessor:
         except Exception as e:
             logger.error(f"[ERROR] Error loading data: {str(e)}", stacklevel=2)
             raise
+
+    def load_ingested_data(self, input_path: str) -> DataFrame:
+        load_format = self.config.get("load_format", "parquet")
+        df = load_data(
+            spark=self.spark,
+            input_path=input_path,
+            format=load_format
+        )
+        return df
         
     def check_null_data(self, df: DataFrame) -> None:
         """Analyze and log null values in the datset."""
@@ -193,37 +134,19 @@ class DataPreprocessor:
         except Exception as e:
             logger.error(f"[ERROR] Error cleaning data: {str(e)}", stacklevel=2)
             raise
-    
-    def save_data_parquet(self, df: DataFrame, output_path: str):
-        """
-        Save processed data as Parquet files for downstream use.
 
-        Args:
-            df (Dataframe): Input DataFrame
-            output_path (str): Relative file path to save the dataframe to
-        """
+    def save_preprocessed_data(self, df: DataFrame, output_path: str):
+        save_format = self.config.get("save_format", "parquet")
+        partitions = self.config.get("partitions", [])
+        is_local = self.config.get("is_local", False)
 
-        logger.info(f"[INFO] Saving {df.count()} records as Parquet files to {output_path}...")
-
-        try:
-            os.makedirs(output_path, exist_ok=True)
-
-            partitions = self.config.get("partitions", [])
-            if partitions:
-                df.write.parquet(output_path, mode="overwrite", partitionBy=partitions)
-            else:
-                df.write.parquet(output_path, mode="overwrite")
-
-            logger.info(f"[INFO] Successfully wrote {df.count()} records")
-            logger.info(f"[INFO] Output location: {output_path}")
-
-            return df.count()
-
-        except Exception as e:
-            logger.error(f"[ERROR] Error saving data as Parquet files: {str(e)}", stacklevel=2)
-            raise
-
-
+        save_data(
+            df=df,
+            output_path=output_path,
+            format=save_format,
+            partitions=partitions,
+            local=is_local
+        )
 
 def process_data_():
     """Main function to run the preprocessing pipeline."""
@@ -235,25 +158,21 @@ def process_data_():
         params = params_obj.load_params(filepath="params.yaml")
 
         app_name = params["sparksession"]["name"]
-        raw_data_file = os.path.join(
-            params["paths"]["raw_data_path"],
-            params["paths"]["raw_data_file"]
-        )
-        processed_data_path = params["paths"]["processed_data_path"]
+
+        ingested_data_path = params["paths"]["data"]["ingested"]
+        processed_data_path = params["paths"]["data"]["processed"]
 
         spark_loader = SparkLoader(app_name)
         preprocessor = DataPreprocessor(
             spark=spark_loader.spark,
             config=params["data_preprocessing"]
         )
-        df = preprocessor.load_data_csv(
-            input_path=raw_data_file
-        )
+        df = preprocessor.load_ingested_data(input_path=ingested_data_path)
         preprocessor.check_null_data(df=df)
         df_cleaned = preprocessor.clean_data(df=df)
-        preprocessor.save_data_parquet(
-            df=df_cleaned, 
-            output_path=processed_data_path,
+        preprocessor.save_preprocessed_data(
+            df=df_cleaned,
+            output_path=processed_data_path
         )
         logger.info("[INFO] Preprocessing pipeline completed successfully")
 
