@@ -2,14 +2,27 @@ sparksession:
   name: "Exploring Customer Churn Dataset"
 
 paths:
-  raw_data_path: "data/raw"
-  raw_data_file: "customer_churn_dataset-training-master.csv"
-  processed_data_path: "data/processed"
-  train_data_path: "data/model_data/train"
-  test_data_path: "data/model_data/test"
-  artifacts_path: "artifacts"
-  metrics_path: "metrics"
-  model_path: "GBTClassifier_1c8668dd7fc0"
+  data:
+    raw: data/raw
+    ingested: data/ingested
+    processed: data/processed
+    training: data/model_data/train
+    testing: data/model_data/test
+  artifacts: artifacts
+  metrics: metrics
+
+adls_paths:
+  data:
+    raw: abfss://source_container_name@storage_account_name.dfs.core.windows.net
+    ingested: abfss://ingest_container_name@storage_account_name.dfs.core.windows.net
+    processed: abfss://process_container_name@storage_account_name.dfs.core.windows.net
+    training: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/train
+    testing: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/test
+  artifacts: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/artifacts
+  metrics: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/metrics
+
+data_ingestion:
+  save_format: parquet
 
 data_preprocessing:
   columns_to_drop:
@@ -22,6 +35,9 @@ data_preprocessing:
     - "Gender"
     - "Subscription Type"
     - "Contract Length"
+  is_local: False
+  load_format: parquet
+  save_format: delta
 
 feature_engineering:
   new_features:
@@ -53,6 +69,9 @@ feature_engineering:
             end: "null"
   train_test_split_ratio: 0.2
   random_seed: 42
+  is_local: False
+  load_format: delta
+  save_format: delta
 
 model_training:
   eval_choice: "accuracy"
@@ -85,6 +104,8 @@ model_training:
           - "auto"
           - "sqrt"
           - "log2"
+  load_format: delta
+  is_local: False
 
 model_evaluation:
   metrics:
@@ -94,3 +115,4 @@ model_evaluation:
     - "f1"
     - "roc_auc"
     - "confusion_matrix"
+  load_format: delta
