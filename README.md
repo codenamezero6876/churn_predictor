@@ -41,6 +41,7 @@ Customer churn is a critical business problem that directly impacts revenue and 
 │   ├── raw/                        # Raw churn dataset
 │   ├── ingested/                   # Ingested data
 │   ├── processed/                  # Transformed churn dataset (ready to be used for ML and visualization)
+│   ├── visual/                     # Data to be used for visual analysis
 │   ├── train/                      # Training data
 │   ├── testing/                    # Testing data  
 │
