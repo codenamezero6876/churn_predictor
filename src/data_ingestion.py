@@ -1,4 +1,5 @@
 from pyspark.sql import SparkSession, DataFrame
+from delta.tables import DeltaTable
 from src.helper_class import Log, LoadYamlParams, SparkLoader
 
 logger = Log.setup_logging()
@@ -20,6 +21,7 @@ class DataIngestor:
         logger.info(
             "[INFO] Data ingestor initialized with existing Spark session"
         )
+        self.delta_path = None
 
     def ingest_source_data_from_adls(
         self,
@@ -42,6 +44,23 @@ class DataIngestor:
             logger.error(f"[ERROR] Error ingesting source data from ADLS: {str(e)}", stacklevel=2)
             raise
 
+    def _incremental_upsert(self, batch_df: DataFrame, batch_id):
+        if DeltaTable.isDeltaTable(self.spark, self.delta_path):
+            delta_table = DeltaTable.forPath(self.spark, self.delta_path)
+            delta_table.alias("target") \
+                .merge(
+                    batch_df.alias("source"),
+                    "target.CustomerID = source.CustomerID"
+                ) \
+                .whenMatchedUpdateAll() \
+                .whenNotMatchedInsertAll() \
+                .execute()
+        else:
+            batch_df.write \
+                .format("delta") \
+                .mode("ignore") \
+                .save(self.delta_path)
+
     def ingest_incremental_data(
         self,
         df: DataFrame,
@@ -51,12 +70,16 @@ class DataIngestor:
         """Writes and saves incremental data according to specified format."""
         try:
             logger.info("[INFO] Ingesting incremental data...")
+
             format = self.config.get("save_format", "parquet")
+            self.delta_path = f"{source_path}/{file_name}"
+
             df.writeStream.format(format) \
                 .outputMode("append") \
+                .foreachBatch(self._incremental_upsert) \
                 .option("checkpointLocation", f"{source_path}/cp_{file_name}") \
                 .option("path", f"{source_path}/{file_name}") \
-                .trigger(once=True) \
+                .trigger(availableNow=True) \
                 .start()
             logger.info("[INFO] Incremental data ingested successfully")
 
