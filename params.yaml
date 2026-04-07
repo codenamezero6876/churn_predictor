@@ -8,6 +8,7 @@ paths:
     processed: data/processed
     training: data/model_data/train
     testing: data/model_data/test
+    visual: data/visual
   artifacts: artifacts
   metrics: metrics
 
@@ -18,11 +19,12 @@ adls_paths:
     processed: abfss://process_container_name@storage_account_name.dfs.core.windows.net
     training: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/train
     testing: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/test
+    visual: abfss://visual_container_name@storage_account_name.dfs.core.windows.net
   artifacts: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/artifacts
   metrics: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/metrics
 
 data_ingestion:
-  save_format: parquet
+  save_format: delta
 
 data_preprocessing:
   columns_to_drop:
@@ -36,7 +38,7 @@ data_preprocessing:
     - "Subscription Type"
     - "Contract Length"
   is_local: False
-  load_format: parquet
+  load_format: delta
   save_format: delta
 
 feature_engineering:
