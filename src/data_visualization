@@ -1,0 +1,119 @@
+from pyspark.sql import SparkSession, DataFrame, Column, functions as F
+
+from functools import reduce
+from src.helper_class import \
+    Log, \
+    SparkLoader, \
+    LoadYamlParams, \
+    load_data
+
+
+logger = Log.setup_logging()
+
+
+class DataPrepForVisual:
+    """
+    Prepares the data for visual analysis with SQL coding.
+    """
+    def __init__(self, spark: SparkSession, config: dict):
+        """
+        Initialize feature engineer with SparkSession.
+
+        Args:
+            spark (SparkSession): Existing SparkSession to use
+            config (dict): Feature engineering configurations to use
+        """
+        self.spark = spark
+        self.config = config
+        logger.info("[INFO] FeatureEngineer initialized with existing SparkSession", stacklevel=2)
+
+    def load_processed_data(self, input_path: str) -> DataFrame:
+        load_format = self.config.get("load_format", "delta")
+        df = load_data(
+            spark=self.spark,
+            input_path=input_path,
+            format=load_format
+        )
+        return df
+    
+    def categorize_existing_columns(self, df: DataFrame) -> DataFrame:
+        """
+        Convert existing numeric columns specified in the config into a categorical one.
+
+        Args:
+            df (DataFrame): Input DataFrame
+        """
+
+        def make_condition(category: str, c: Column, label: dict):
+            if label["start"] == "null":
+                return c.when(F.col(category) < label["end"], label["name"])
+            elif label["end"] == "null":
+                return c.when(F.col(category) > label["start"], label["name"])
+            else:
+                return c.when(F.col(category).between(label["start"], label["end"]), label["name"])
+
+        try:
+            if (
+                self.config.get("new_features") and
+                self.config.get("new_features").get("categorize_from_existing")
+            ):
+                features = self.config.get("new_features").get("categorize_from_existing")
+
+                for feature in features:
+                    category = feature["col_name"]
+                    labels = feature["labels"]
+                    cond = reduce(
+                        lambda c, label: make_condition(category, c, label),
+                        labels,
+                        F
+                    )
+
+                    df = df.withColumn(f"{category}_category", cond)
+
+                logger.info("[INFO] Successfully categorized all existing numeric columns specified in config")
+                return df
+
+        except Exception as e:
+            logger.error(f"[ERROR] Error categorizing numeric column: {str(e)}", stacklevel=2)
+            raise
+
+
+def prepare_data_for_visual_analysis():
+    """Main function to run the pipeline for data preparation for visualization."""
+
+    logger.info("[INFO] Starting data_preparation pipeline...")
+
+    try:
+        params_obj = LoadYamlParams()
+        params = params_obj.load_params(filepath="params.yaml")
+
+        app_name = params["sparksession"]["name"]
+        processed_data_path = params["paths"]["data"]["processed"]
+        visual_data_path = params["paths"]["data"]["visual"]
+
+        spark_loader = SparkLoader(app_name)
+        data_prep = DataPrepForVisual(
+            spark=spark_loader.spark,
+            config=params["feature_engineering"]
+        )
+        df = data_prep.load_processed_data(input_path=processed_data_path)
+        df = data_prep.categorize_existing_columns(df)
+        df.write \
+            .format("delta") \
+            .mode("overwrite") \
+            .option("path", f"{visual_data_path}/customers") \
+            .save()
+
+        logger.info(f"[INFO] Data preparation pipeline for visualization completed successfully")
+
+    except Exception as e:
+        logger.error(f"[ERROR] Data preparation pipeline failed: {str(e)}", stacklevel=2)
+        raise
+
+    finally:
+        spark_loader.spark.stop()
+        logger.info("Spark session closed")
+
+
+if __name__ == "__main__":
+    prepare_data_for_visual_analysis()
