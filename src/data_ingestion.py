@@ -89,7 +89,7 @@ class DataIngestor:
 
 
 
-def ingest_data_():
+def ingest_data_(inference_mode=False):
     """Main function to run data ingestion pipeline."""
 
     logger.info("[INFO] Initializing Data Ingestion Pipeline...")
@@ -99,8 +99,13 @@ def ingest_data_():
         params = params_obj.load_params(filepath="params.yaml")
 
         app_name = params["sparksession"]["name"]
-        raw_data_path = params["adls_paths"]["data"]["raw"]
-        ingested_data_path = params["adls_paths"]["data"]["ingested"]
+
+        if inference_mode:
+            raw_data_path = params["paths"]["data"]["raw_inference"]
+            ingested_data_path = params["paths"]["data"]["ingested_inference"]
+        else:
+            raw_data_path = params["paths"]["data"]["raw"]
+            ingested_data_path = params["paths"]["data"]["ingested"]
 
         spark_loader = SparkLoader(app_name)
 
