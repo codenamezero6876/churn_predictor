@@ -19,14 +19,16 @@ Customer churn is a critical business problem that directly impacts revenue and 
 
 ## 🛠️ Tech Stack
 
-![My Skills](https://go-skill-icons.vercel.app/api/icons?i=airflow,pyspark,python,databricks,azure,delta)
+![My Skills](https://go-skill-icons.vercel.app/api/icons?i=azure,airflow,databricks,delta,mlflow,pyspark,python)
 
+- ADLS Gen2
 - Airflow
+- Databricks (dashboard to be done soon)
+- Delta
+- MLflow
 - PySpark
 - Python
-- Databricks (dashboard to be done soon)
-- ADLS Gen2
-- Delta
+
 
 <br>
 
@@ -35,7 +37,8 @@ Customer churn is a critical business problem that directly impacts revenue and 
 ```
 │
 ├── dags/
-│   ├── churn_predictor_dag.py      # Workflow orchestration with Airflow DAG
+│   ├── training_pipeline.py        # Training pipeline
+│   ├── inference_pipeline.py       # Inference pipeline
 │
 ├── data/
 │   ├── raw/                        # Raw churn dataset
@@ -43,7 +46,8 @@ Customer churn is a critical business problem that directly impacts revenue and 
 │   ├── processed/                  # Transformed churn dataset (ready to be used for ML and visualization)
 │   ├── visual/                     # Data to be used for visual analysis
 │   ├── train/                      # Training data
-│   ├── testing/                    # Testing data  
+│   ├── testing/                    # Testing data
+│   ├── inference/                  # Inference data
 │
 ├── logging-info/
 │   ├── logs.log                    # Logging to monitor execution and troubleshoot errors
@@ -53,9 +57,11 @@ Customer churn is a critical business problem that directly impacts revenue and 
 │   ├── data_preprocessing.py       # Perform ETL (cleaning, filtering) on ingested data
 │   ├── feature_engineering.py      # Perform ETL (transforming into relevant/meaningful features)
 │   ├── model_training.py           # Train the models with the transformed data (with hyperparameter tuning)
-│   ├── model_evaluation.py         # Evaluate the models across a set of metrics
+│   ├── model_inference.py          # Perform model prediction with inference data
+│   ├── registry_update.py          # Update MLflow model registry
 │   ├── helper_class.py             # Common classes and functions to be used for other scripts
-│   ├── data_visualization.py       # Code for visual analysis / dashboard (to be done soon)
+│   ├── data_visualization.py       # Prepares data for visual analysis / dashboard
+│   ├── databricks_notebook.md      # Databricks notebook code to create dashboard
 │
 ├── params.yaml                     # Configurations for each stage of the pipeline
 ├── requirements.txt                # Python dependencies
