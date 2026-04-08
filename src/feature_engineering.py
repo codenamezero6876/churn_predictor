@@ -178,10 +178,8 @@ class FeatureEngineer:
 
     def save_feature_data(
         self,
-        train_df: DataFrame,
-        test_df: DataFrame,
-        train_path: str,
-        test_path: str
+        df: DataFrame,
+        df_path: str
     ) -> None:
         """
         Save train and test DataFrames as Parquet files
@@ -189,31 +187,24 @@ class FeatureEngineer:
         try:
             repartition = self.config.get("repartition", None)
             save_format = self.config.get("save_format", "delta")
+
             if repartition is not None:
-                train_df = train_df.repartition(repartition)
-                test_df = test_df.repartition(repartition)
+                df = df.repartition(repartition)
 
             save_data(
-                df=train_df,
-                output_path=train_path,
+                df=df,
+                output_path=df_path,
                 format=save_format
             )
 
-            save_data(
-                df=test_df,
-                output_path=test_path,
-                format=save_format
-            )
-            
-            logger.info(f"[INFO] Train data saved to {train_path}.")
-            logger.info(f"[INFO] Test data saved to {test_path}.")
+            logger.info(f"[INFO] Feature data saved to {df_path}.")
 
         except Exception as e:
             logger.error(f"[ERROR] Error saving feature data: {str(e)}", stacklevel=2)
             raise
 
 
-def engineer_features_():
+def engineer_features_(inference_mode=False):
     """Main function to run the feature engineering pipeline."""
 
     logger.info("[INFO] Starting feature engineering pipeline...")
@@ -223,9 +214,14 @@ def engineer_features_():
         params = params_obj.load_params(filepath="params.yaml")
 
         app_name = params["sparksession"]["name"]
-        processed_data_path = params["paths"]["data"]["processed"]
-        train_path = params["paths"]["data"]["training"]
-        test_path = params["paths"]["data"]["testing"]
+
+        if inference_mode:
+            processed_data_path = params["paths"]["data"]["processed_inference"]
+            inference_path = params["paths"]["data"]["inference"]
+        else:
+            processed_data_path = params["paths"]["data"]["processed"]
+            train_path = params["paths"]["data"]["training"]
+            test_path = params["paths"]["data"]["testing"]
 
         spark_loader = SparkLoader(app_name)
         engineer = FeatureEngineer(
@@ -235,13 +231,13 @@ def engineer_features_():
         df = engineer.load_processed_data(input_path=processed_data_path)
         df = engineer.categorize_existing_columns(df)
         df = engineer.create_ml_features(df)
-        train_df, test_df = engineer.split_data(df)
-        engineer.save_feature_data(
-            train_df=train_df,
-            test_df=test_df,
-            train_path=train_path,
-            test_path=test_path
-        )
+
+        if inference_mode:
+            engineer.save_feature_data(df, inference_path)
+        else:
+            train_df, test_df = engineer.split_data(df)
+            engineer.save_feature_data(train_df, train_path)
+            engineer.save_feature_data(test_df, test_path)
 
         logger.info(f"[INFO] Feature engineering pipeline completed successfully")
 
