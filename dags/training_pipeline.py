@@ -6,10 +6,11 @@ import sys
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
 
+from data ingestion import ingest_data_
 from data_preprocessing import process_data_
 from feature_engineering import engineer_features_
 from model_training import train_model_
-from model_evaluation import evaluate_model_
+from registry_update import update_registry_
 
 
 @dag(
@@ -20,21 +21,31 @@ from model_evaluation import evaluate_model_
 )
 def pipeline_flow():
     @task()
+    def ingest_data():
+        ingest_data_()
+    
+    @task()
     def process_data():
         process_data_()
 
     @task()
-    def engineer_features(raw_data):
+    def engineer_features():
         engineer_features_()
 
     @task()
-    def train_model(transformed_data):
+    def train_model():
         train_model_()
 
     @task()
-    def evaluate_model(transformed_data):
-        evaluate_model_()
+    def update_registry():
+        update_registry_()
 
-    chain(process_data(), engineer_features(), train_model(), evaluate_model())
+    chain(
+        ingest_data(),
+        process_data(), 
+        engineer_features(), 
+        train_model(), 
+        update_registry()
+    )
 
 pipeline_flow()
