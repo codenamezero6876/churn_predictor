@@ -133,6 +133,41 @@ class ModelTrainer:
             logger.error(f"[ERROR] Error training model: {str(e)}", stacklevel=2)
             raise
 
+    def evaluate_model(self, model: Model, test_data: DataFrame):
+        """
+        Evaluates the (best) trained model returned from train().
+        """
+        try:
+            logger.info(f"[INFO] Evaluating model performance...")
+
+            param_map = {
+                k.name: v
+                for k, v in model.extractParamMap().items()
+                if k.name != "doc"
+            }
+
+            acc_eval = MulticlassClassificationEvaluator(metricName='accuracy')
+            prec_eval = MulticlassClassificationEvaluator(metricName='weightedPrecision')
+            recall_eval = MulticlassClassificationEvaluator(metricName='weightedRecall')
+            f1_eval = MulticlassClassificationEvaluator(metricName='f1')
+            roc_auc_eval = BinaryClassificationEvaluator(metricName='areaUnderROC')
+            area_under_pr_eval = BinaryClassificationEvaluator(metricName='areaUnderPR')
+
+            results = model.transform(test_data)
+            metrics = {
+                "accuracy": acc_eval.evaluate(results),
+                "weightedPrecision": prec_eval.evaluate(results),
+                "weightedRecall": recall_eval.evaluate(results),
+                "f1": f1_eval.evaluate(results),
+                "areaUnderROC": roc_auc_eval.evaluate(results),
+                "areaUnderPR": area_under_pr_eval.evaluate(results),
+            }
+            return param_map, metrics
+            
+        except Exception as e:
+            logger.error(f"[ERROR] Error evaluating model performance: {str(e)}", stacklevel=2)
+            raise
+
     def save_model(self, model, models_path: str, local: bool=False):
         """Save the trained model and returns the model's ID."""
         try:
@@ -151,8 +186,6 @@ class ModelTrainer:
 def train_model_():
     """Main function to run the model training pipeline."""
 
-    print("[INFO] Starting model training pipeline...")
-
     try:
         logger.info("[INFO] Starting model training pipeline...")
 
@@ -161,18 +194,41 @@ def train_model_():
 
         app_name = params["sparksession"]["name"]
         train_path = params["paths"]["data"]["training"]
+        test_path = params["paths"]["data"]["testing"]
         models_path = params["paths"]["artifacts"]
+        mlflow_uri = params["mlflow"]["uri"]
+        mlflow_experiment_name = params["mlflow"]["experiment_name"]
+        mlflow_artifact_path = params["mlflow"]["artifact_path"]
 
         spark_loader = SparkLoader(app_name)
         trainer = ModelTrainer(
             spark=spark_loader.spark,
             config=params["model_training"]
         )
-        train_data = trainer.load_train_data(train_path)
-        trained_model = trainer.train(train_data=train_data)
-        model_id = trainer.save_model(trained_model, models_path)
 
+        mlflow_run_id = None
+        mlflow.set_tracking_uri(uri=mlflow_uri)
+        mlflow.set_experiment(experiment_name=mlflow_experiment_name)
+
+        with mlflow.start_run():
+            train_data = trainer.load_train_data(train_path)
+            test_data = trainer.load_train_data(test_path)
+            trained_model = trainer.train(train_data=train_data)
+            param_map, metrics = trainer.evaluate_model(trained_model, test_data)
+
+            mlflow.log_params(param_map)
+            mlflow.log_metrics(metrics)
+            mlflow.set_tag(key="model_name", value=trained_model.uid)
+            mlflow.spark.log_model(
+                spark_model=trained_model,
+                artifact_path=mlflow_artifact_path
+            )
+            mlflow_run_id = mlflow.active_run().info.run_id
+
+        model_id = trainer.save_model(trained_model, models_path)
+        
         params["paths"]["model_path"] = model_id
+        params["mlflow"]["mlflow_run_id"] = mlflow_run_id
         with open("params.yaml", 'w') as f:
             yaml.safe_dump(params, f)
 
