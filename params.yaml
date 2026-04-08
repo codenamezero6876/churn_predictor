@@ -1,7 +1,7 @@
 sparksession:
   name: "Exploring Customer Churn Dataset"
 
-paths:
+old_paths:
   data:
     raw: data/raw
     ingested: data/ingested
@@ -12,16 +12,26 @@ paths:
   artifacts: artifacts
   metrics: metrics
 
-adls_paths:
+paths:
   data:
     raw: abfss://source_container_name@storage_account_name.dfs.core.windows.net
     ingested: abfss://ingest_container_name@storage_account_name.dfs.core.windows.net
     processed: abfss://process_container_name@storage_account_name.dfs.core.windows.net
     training: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/train
     testing: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/test
+    inference: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/inference
     visual: abfss://visual_container_name@storage_account_name.dfs.core.windows.net
   artifacts: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/artifacts
   metrics: abfss://ml_container_name@storage_account_name.dfs.core.windows.net/metrics
+
+mlflow:
+  uri: http://0.0.0.0:8000
+  experiment_name: churn_predictor
+  artifact_path: model-artifact
+  registered_model_name: churn_predictor
+  registry:
+    crit_val: 0.1
+    metric: accuracy
 
 data_ingestion:
   save_format: delta
