@@ -65,7 +65,31 @@ class ModelEvaluator:
             logger.error(f"[ERROR] Error loading model: {str(e)}", stacklevel=2)
             raise
 
-    def load_test_data(self, input_path: str) -> DataFrame:
+    def load_registered_model(self):
+        """Load the trained model from MLflow."""
+        try:
+            logger.info("[INFO] Loading registered model from MLflow...")
+            
+            model_uri = self.config.get("uri")
+            model_name = self.config.get("registered_model_name")
+
+            mlflow.set_tracking_uri(model_uri)
+            reg_models = mlflow.search_registered_models(
+                filter_string=f"name = '{model_name}'"
+            )
+
+            reg_model_version = reg_models[0].latest_versions[0].version
+            reg_model = mlflow.spark.load_model(
+                model_uri=f"models:/{model_name}/{reg_model_version}"
+            )
+            logger.info(f"[INFO] Model version {reg_model_version} loaded from model registry")
+            return reg_model
+
+        except Exception as e:
+            logger.error(f"[ERROR] Error loading registered model: {str(e)}", stacklevel=2)
+            raise
+
+    def load_inference_data(self, input_path: str) -> DataFrame:
         load_format = self.config.get("load_format", "delta")
         df = load_data(
             spark=self.spark,
@@ -74,63 +98,23 @@ class ModelEvaluator:
         )
         return df
 
-    def calculate_metrics(self, model: Transformer, df: DataFrame):
-        """Calculate various classification metrics."""
+    def predict(self, model: Transformer, df: DataFrame):
+        """Perform prediction on inference data."""
         try:
+            logger.info("[INFO] Predicting data...")
             preds = model.transform(df)
-
-            binary_evaluator = BinaryClassificationEvaluator(
-                rawPredictionCol="rawPrediction", labelCol="label"
-            )
-            multi_evaluator = MulticlassClassificationEvaluator(
-                predictionCol="prediction", labelCol="label"
-            )
-
-            metrics = {
-                "accuracy": multi_evaluator.setMetricName("accuracy").evaluate(preds),
-                "precision": multi_evaluator.setMetricName("weightedPrecision").evaluate(preds),
-                "recall": multi_evaluator.setMetricName("weightedRecall").evaluate(preds),
-                "f1": multi_evaluator.setMetricName("f1").evaluate(preds),
-                "auc_roc": binary_evaluator.setMetricName("areaUnderROC").evaluate(preds)
-            }
-
-            cf_matrix = preds.groupBy("label", "prediction").count().collect()
-            metrics["confusion_matrix"] = [
-                {
-                    "actual": row["label"],
-                    "predicted": row["prediction"],
-                    "count": row["count"]
-                }
-                for row in cf_matrix
-            ]
-
-            logger.info("[INFO] Model evaluation metrics calculated successfully")
-            return metrics
-
+            logger.info("[INFO] Prediction completed successfully")
+            return json.dumps(preds)
+        
         except Exception as e:
-            logger.error(f"[ERROR] Error calculating metrics: {str(e)}")
-            raise
-
-    def save_metrics(self, metrics: dict, metrics_path: str, model_id: str):
-        """Save metrics to JSON file."""
-        try:
-            output_path = os.path.join(metrics_path, f"{model_id}_metrics.json")
-            os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            with open(output_path, "w") as f:
-                json.dump(metrics, f, indent=4)
-
-            logger.info(f"[INFO] Metrics saved successfully to {output_path}")
-
-        except Exception as e:
-            logger.error(f"[ERROR] Error saving metrics: {str(e)}", stacklevel=2)
+            logger.error(f"[ERROR] Error predicting data: {str(e)}", stacklevel=2)
             raise
 
 
-
-def evaluate_model_():
+def predict_churn_():
     """Main function to run model evaluation."""
 
-    logger.info("[INFO] Starting model evaluation pipeline...")
+    logger.info("[INFO] Starting model inference pipeline...")
 
     try:
         params_obj = LoadYamlParams()
@@ -142,23 +126,22 @@ def evaluate_model_():
             params["paths"]["artifacts"],
             model_id
         )
-        test_path = params["paths"]["data"]["testing"]
-        metrics_path = params["paths"]["metrics"]
+        inference_path = params["paths"]["data"]["inference"]
 
         spark_loader = SparkLoader(app_name)
-        evaluator = ModelEvaluator(
+        predictor = ModelPredictor(
             spark=spark_loader.spark,
             config=params["model_evaluation"]
         )
-        model = evaluator.load_model(model_path, model_id)
-        test_data = evaluator.load_test_data(test_path)
-        metrics = evaluator.calculate_metrics(model, test_data)
-        evaluator.save_metrics(metrics, metrics_path)
+        model = predictor.load_model(model_path, model_id)
+        inference_data = predictor.load_inference_data(inference_path)
+        predictions = predictor.predict(model, inference_data)
 
-        logger.info("[INFO] Model evaluation completed successfully")
+        logger.info("[INFO] Model inference completed successfully")
+        return predictions
 
     except Exception as e:
-        logger.error(f"[ERROR] Model evaluation pipeline failed: {str(e)}")
+        logger.error(f"[ERROR] Model inference pipeline failed: {str(e)}")
         raise
 
     finally:
