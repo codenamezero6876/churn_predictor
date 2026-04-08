@@ -148,7 +148,7 @@ class DataPreprocessor:
             local=is_local
         )
 
-def process_data_():
+def process_data_(inference_mode=False):
     """Main function to run the preprocessing pipeline."""
 
     logger.info("[INFO] Logging setup completed successfully")
@@ -159,8 +159,12 @@ def process_data_():
 
         app_name = params["sparksession"]["name"]
 
-        ingested_data_path = params["paths"]["data"]["ingested"]
-        processed_data_path = params["paths"]["data"]["processed"]
+        if inference_mode:
+            ingested_data_path = params["paths"]["data"]["ingested_inference"]
+            processed_data_path = params["paths"]["data"]["processed_inference"]
+        else:
+            ingested_data_path = params["paths"]["data"]["ingested"]
+            processed_data_path = params["paths"]["data"]["processed"]
 
         spark_loader = SparkLoader(app_name)
         preprocessor = DataPreprocessor(
